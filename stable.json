@@ -2,10 +2,10 @@
   "schema": 1,
   "product": "monarch-media-studio",
   "channel": "stable",
-  "version": "0.1.0-beta.4",
-  "notes": "SMART DEPTH BETA.4 \u2014 MANUAL INSTALL REQUIRED. Adds local AI webcam background removal and bundled model files. Beta.2 and beta.3 updater scripts CANNOT install the new model folder: download the beta.4 ZIP, extract it, and run INSTALL_WINDOWS.cmd. Start START_WINDOWS.cmd; change OBS Browser Source to URL http://127.0.0.1:17463/MonarchMediaStudio.html with Local File unchecked. Real OBS camera permissions and streaming performance remain unverified. Export and import your saved JSON layouts between Browser Source origins.",
-  "download_url": "https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.4/MonarchMediaStudio_0.1.0-beta.4.zip",
-  "sha256": "9b828536d4497a802389eff0f8127b3eb1190df00cca43949b0b0a40cfd035ff",
-  "bytes": 4080065,
+  "version": "0.1.0-beta.5",
+  "notes": "OBS editor reliability update: dropdown menus now render clearly inside Media Studio instead of relying on invisible native CEF popups. The current version appears at the top of the editor. If Check updates is MISSING, your original beta cannot receive alerts: manually download the new ZIP and run INSTALL_WINDOWS.cmd once. Beta.4 users can run UPDATE_WINDOWS.cmd or manually install. Smart Depth remains experimental; test with OBS before streaming.",
+  "download_url": "https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.5/MonarchMediaStudio_0.1.0-beta.5.zip",
+  "sha256": "acaa47487351d59ff9e6f38c5633332bc5360bea4ab0bee46ecd43bde400ce0c",
+  "bytes": 4081932,
   "requires_manual_install": true
 }
