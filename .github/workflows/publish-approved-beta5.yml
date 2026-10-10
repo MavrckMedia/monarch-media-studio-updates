@@ -1,0 +1,95 @@
+name: Publish verified Monarch Media Studio beta.5 editor repair
+on:
+  push:
+    paths:
+      - .github/workflows/publish-approved-beta5.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  approved-editor-repair:
+    if: github.repository == 'MavrckMedia/monarch-media-studio-updates'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download approved beta.5 build and verify pinned bytes
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          curl --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 180 -fLsS \
+            'https://drive.google.com/uc?export=download&id=1tKEI3IwtuqSAnUA77vzVAu9zNJvD1e8-' \
+            -o dist/MonarchMediaStudio_0.1.0-beta.5.zip
+          test "$(stat -c%s dist/MonarchMediaStudio_0.1.0-beta.5.zip)" = '4081932'
+          echo 'acaa47487351d59ff9e6f38c5633332bc5360bea4ab0bee46ecd43bde400ce0c  dist/MonarchMediaStudio_0.1.0-beta.5.zip' | sha256sum -c -
+      - name: Verify manifest, local AI runtime and dropdown repair
+        run: |
+          python3 - <<'PY'
+          import zipfile,json,hashlib
+          f='dist/MonarchMediaStudio_0.1.0-beta.5.zip'
+          with zipfile.ZipFile(f) as z:
+              names=z.namelist()
+              assert len(names)==len(set(names)), 'ZIP duplicate path'
+              assert z.read('MonarchMediaStudio/VERSION.txt').strip()==b'0.1.0-beta.5'
+              m=json.loads(z.read('MonarchMediaStudio/MANIFEST.json'))
+              assert m['product']=='Monarch Media Studio' and m['release']=='0.1.0-beta.5'
+              assert set(m['files'])==set(names)-{'MonarchMediaStudio/MANIFEST.json'}
+              for p,h in m['files'].items():
+                  assert hashlib.sha256(z.read(p)).hexdigest()==h,p
+              html=z.read('MonarchMediaStudio/MonarchMediaStudio.html').decode()
+              for symbol in ('monarchComboMenu','combo-trigger','buildVersion','checkUpdates'):
+                  assert symbol in html,symbol
+              required=[
+                'MonarchMediaStudio/INSTALL_WINDOWS.cmd',
+                'MonarchMediaStudio/START_WINDOWS.cmd',
+                'MonarchMediaStudio/Local_Monarch_Host.ps1',
+                'MonarchMediaStudio/foreground-cutout.js',
+                'MonarchMediaStudio/vendor/selfie_segmentation/selfie_segmentation.js',
+                'MonarchMediaStudio/vendor/selfie_segmentation/selfie_segmentation_landscape.tflite',
+                'MonarchMediaStudio/licenses/MediaPipe-Apache-2.0.txt'
+              ]
+              for name in required: assert name in names,name
+              assert b"return '0.1.0-beta.5'" in z.read('MonarchMediaStudio/update-core.js')
+          print('Validated byte-exact beta.5 including editor repairs and bundled on-device AI')
+          PY
+      - name: Publish separately versioned friends beta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view v0.1.0-beta.5 >/dev/null 2>&1; then
+            gh release create v0.1.0-beta.5 dist/MonarchMediaStudio_0.1.0-beta.5.zip \
+              --target main --prerelease \
+              --title 'Monarch Media Studio beta.5 - OBS editor dropdown repair' \
+              --notes 'Fixes OBS/CEF native dropdowns that displayed invisible menus by rendering accessible selectable options inside the Media Studio editor. Adds installed-version display and official releases recovery link. Retains Smart Depth, YouTube, Spotify, local media and existing layouts. Automated Chromium editor, MediaPipe runtime and Windows-host tests passed. This remains a friends beta: physical OBS camera, editor and encoder tests still needed.
+
+          Users on a legacy beta with NO Check updates button must download, extract and run INSTALL_WINDOWS.cmd manually. Beta.4 users can use UPDATE_WINDOWS.cmd, or reinstall beta.5 manually. Close OBS first; back up/export important layouts before switching sources. For AI cutout, run START_WINDOWS.cmd and use localhost Browser Source URL http://127.0.0.1:17463/MonarchMediaStudio.html with Local File unchecked. OBS settings and origin-specific layout storage do not migrate automatically.'
+          fi
+          mkdir -p /tmp/check
+          gh release download v0.1.0-beta.5 \
+            --pattern 'MonarchMediaStudio_0.1.0-beta.5.zip' \
+            --dir /tmp/check --clobber
+          echo 'acaa47487351d59ff9e6f38c5633332bc5360bea4ab0bee46ecd43bde400ce0c  /tmp/check/MonarchMediaStudio_0.1.0-beta.5.zip' | sha256sum -c -
+      - name: Update public notification feed after verified GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          data={
+            'schema':1,'product':'monarch-media-studio','channel':'stable',
+            'version':'0.1.0-beta.5',
+            'notes':'OBS editor reliability update: dropdown menus now render clearly inside Media Studio instead of relying on invisible native CEF popups. The current version appears at the top of the editor. If Check updates is MISSING, your original beta cannot receive alerts: manually download the new ZIP and run INSTALL_WINDOWS.cmd once. Beta.4 users can run UPDATE_WINDOWS.cmd or manually install. Smart Depth remains experimental; test with OBS before streaming.',
+            'download_url':'https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.5/MonarchMediaStudio_0.1.0-beta.5.zip',
+            'sha256':'acaa47487351d59ff9e6f38c5633332bc5360bea4ab0bee46ecd43bde400ce0c','bytes':4081932,
+            'requires_manual_install':True
+          }
+          with open('/tmp/stable.json','w') as f:json.dump(data,f,indent=2);f.write('\n')
+          PY
+          current=$(gh api repos/MavrckMedia/monarch-media-studio-updates/contents/stable.json --jq .sha)
+          encoded=$(base64 -w0 /tmp/stable.json)
+          gh api -X PUT repos/MavrckMedia/monarch-media-studio-updates/contents/stable.json \
+            -f message='release: notify clients of verified beta.5 OBS menu repair' \
+            -f sha="$current" -f branch=main -f content="$encoded" >/dev/null
+          test "$(gh api repos/MavrckMedia/monarch-media-studio-updates/contents/stable.json --jq .content | base64 -d | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])')" = '0.1.0-beta.5'
+          echo 'Published beta.5 green-arrow update channel'
