@@ -1,0 +1,22 @@
+name: Probe public distribution download
+on:
+  push:
+    paths:
+      - '.github/workflows/probe-drive-download.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify publicly shared Google Drive ZIP is fetchable by an unauthenticated client
+        run: |
+          set -euo pipefail
+          curl --retry 2 --retry-delay 1 --connect-timeout 15 --max-time 90 -fLsS \
+            'https://drive.google.com/uc?export=download&id=1tKEI3IwtuqSAnUA77vzVAu9zNJvD1e8-' \
+            -o /tmp/monarch-probe.zip
+          file /tmp/monarch-probe.zip
+          wc -c /tmp/monarch-probe.zip
+          echo '98c668806eee39689092beb2f8b18ea44e95d9c241e34bae75895a417bd45000  /tmp/monarch-probe.zip' | sha256sum -c -
+          python3 -c "import zipfile; z=zipfile.ZipFile('/tmp/monarch-probe.zip'); print(z.namelist()[:3])"
