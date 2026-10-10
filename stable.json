@@ -2,9 +2,9 @@
   "schema": 1,
   "product": "monarch-media-studio",
   "channel": "stable",
-  "version": "0.1.0-beta.2",
-  "notes": "Monarch Media Studio Friends Beta 0.1.0-beta.2. Includes media-layer layout reliability fixes, an update notification in the OBS editor, and a user-run Windows update helper with package validation and rollback. This first update-enabled version must be installed manually by earlier beta users; new version notifications will begin with the next approved release.",
-  "download_url": "https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.2/MonarchMediaStudio_UpdateEnabled_FriendsBeta_0.1.0-beta.2.zip",
-  "sha256": "98c668806eee39689092beb2f8b18ea44e95d9c241e34bae75895a417bd45000",
-  "bytes": 26356
+  "version": "0.1.0-beta.3",
+  "notes": "YouTube Error 153 maintenance beta: the YouTube iframe now allows origin referrer identification instead of suppressing it. No unrelated features changed. Browser and automated regression checks passed. OBS file:// sources might still lack a usable HTTP Referer, so please test YouTube playback and report if Error 153 continues. This update is optional and requires running the Windows updater after download.",
+  "download_url": "https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.3/MonarchMediaStudio_0.1.0-beta.3.zip",
+  "sha256": "64a1e233e1746d22539b235e1ddddd944272af414cc7294ecdc41cc5772308d6",
+  "bytes": 27035
 }
