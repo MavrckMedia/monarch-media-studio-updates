@@ -1,0 +1,41 @@
+name: Publish verified Monarch Media Studio beta.3
+on:
+  push:
+    paths:
+      - .github/workflows/publish-approved-beta3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Reproduce pinned beta.3 and publish GitHub prerelease
+    if: github.repository == 'MavrckMedia/monarch-media-studio-updates'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rebuild exact privately tested ZIP (SHA pinned)
+        run: |
+          set -euo pipefail
+          python3 release-tools/build_beta3_from_beta2.py
+          echo "64a1e233e1746d22539b235e1ddddd944272af414cc7294ecdc41cc5772308d6  dist/MonarchMediaStudio_0.1.0-beta.3.zip" | sha256sum -c -
+      - name: Upload to an explicitly labeled prerelease (never change the feed here)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v0.1.0-beta.3 >/dev/null 2>&1; then
+            echo "Release exists; verifying its exact binary instead of overwriting it."
+          else
+            gh release create v0.1.0-beta.3 dist/MonarchMediaStudio_0.1.0-beta.3.zip \
+              --target main \
+              --prerelease \
+              --title "Monarch Media Studio 0.1.0-beta.3 — YouTube Error 153 maintenance candidate" \
+              --notes "Private CI passed. This maintenance beta corrects YouTube iframe referrer-policy stripping that can cause Error 153. OBS file:// embeds may still be missing an HTTP Referer, so a physical OBS playback test is still required. No other features added. Install voluntarily through the approved update workflow."
+          fi
+          mkdir -p /tmp/monarch-verified
+          gh release download v0.1.0-beta.3 --pattern 'MonarchMediaStudio_0.1.0-beta.3.zip' \
+            --dir /tmp/monarch-verified --clobber
+          echo "64a1e233e1746d22539b235e1ddddd944272af414cc7294ecdc41cc5772308d6  /tmp/monarch-verified/MonarchMediaStudio_0.1.0-beta.3.zip" | sha256sum -c -
+          echo "Published pre-release asset exactly matches the private approved and tested binary."
