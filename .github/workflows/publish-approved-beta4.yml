@@ -1,0 +1,105 @@
+name: Publish approved Monarch Media Studio beta.4
+on:
+  push:
+    paths:
+      - .github/workflows/publish-approved-beta4.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verified-release:
+    if: github.repository == 'MavrckMedia/monarch-media-studio-updates'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download publicly accessible owner-approved beta.4 ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          curl --retry 3 --retry-delay 2 --connect-timeout 15 --max-time 180 -fLsS \
+            'https://drive.google.com/uc?export=download&id=1tKEI3IwtuqSAnUA77vzVAu9zNJvD1e8-' \
+            -o dist/MonarchMediaStudio_0.1.0-beta.4.zip
+          test "$(stat -c%s dist/MonarchMediaStudio_0.1.0-beta.4.zip)" = '4080065'
+          echo '9b828536d4497a802389eff0f8127b3eb1190df00cca43949b0b0a40cfd035ff  dist/MonarchMediaStudio_0.1.0-beta.4.zip' | sha256sum -c -
+      - name: Verify model assets and SHA256 manifest before publishing
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, zipfile
+          source='dist/MonarchMediaStudio_0.1.0-beta.4.zip'
+          with zipfile.ZipFile(source) as z:
+              names=z.namelist()
+              assert len(names)==len(set(names)),"duplicate files"
+              required={
+                'MonarchMediaStudio/MonarchMediaStudio.html',
+                'MonarchMediaStudio/foreground-cutout.js',
+                'MonarchMediaStudio/Local_Monarch_Host.ps1',
+                'MonarchMediaStudio/START_WINDOWS.cmd',
+                'MonarchMediaStudio/INSTALL_WINDOWS.cmd',
+                'MonarchMediaStudio/Update_MonarchMediaStudio.ps1',
+                'MonarchMediaStudio/vendor/selfie_segmentation/selfie_segmentation.js',
+                'MonarchMediaStudio/vendor/selfie_segmentation/selfie_segmentation_landscape.tflite',
+                'MonarchMediaStudio/vendor/selfie_segmentation/selfie_segmentation_solution_wasm_bin.wasm',
+                'MonarchMediaStudio/licenses/MediaPipe-Apache-2.0.txt',
+                'MonarchMediaStudio/MANIFEST.json',
+              }
+              assert required.issubset(names), "Missing required Smart Depth runtime or installer"
+              assert z.read('MonarchMediaStudio/VERSION.txt').strip()==b'0.1.0-beta.4'
+              manifest=json.loads(z.read('MonarchMediaStudio/MANIFEST.json'))
+              assert manifest['product']=='Monarch Media Studio'
+              assert manifest['release']=='0.1.0-beta.4'
+              for name,sha in manifest['files'].items():
+                  assert hashlib.sha256(z.read(name)).hexdigest()==sha,(name,'hash mismatch')
+              assert set(manifest['files'])==set(names)-{'MonarchMediaStudio/MANIFEST.json'}
+          print('All distribution/AI model integrity gates passed')
+          PY
+      - name: Publish explicitly labeled beta.4 prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view v0.1.0-beta.4 >/dev/null 2>&1; then
+            gh release create v0.1.0-beta.4 \
+              dist/MonarchMediaStudio_0.1.0-beta.4.zip \
+              --target main --prerelease \
+              --title 'Monarch Media Studio beta.4 — Smart Depth camera test' \
+              --notes '**Smart Depth beta.4:** Adds on-device webcam background removal and a localhost-only Windows host. Real MediaPipe processing passed automated synthetic-camera tests.
+              
+          **ONE-TIME MANUAL INSTALL REQUIRED:** Old beta.2/3 updaters CANNOT install the new AI model folder. Download the ZIP, extract it, run INSTALL_WINDOWS.cmd, then START_WINDOWS.cmd. In OBS add a Browser Source URL http://127.0.0.1:17463/MonarchMediaStudio.html (uncheck Local File), 1920x1080. Export/import existing JSON layouts as needed.
+              
+          **Experimental pre-release:** OBS webcam access, encoder load and sustained livestream performance are not yet hardware-verified. If camera permission fails, disable this feature and use normal media layers.'
+          fi
+          mkdir -p /tmp/published
+          gh release download v0.1.0-beta.4 \
+            --pattern 'MonarchMediaStudio_0.1.0-beta.4.zip' \
+            --dir /tmp/published --clobber
+          echo '9b828536d4497a802389eff0f8127b3eb1190df00cca43949b0b0a40cfd035ff  /tmp/published/MonarchMediaStudio_0.1.0-beta.4.zip' | sha256sum -c -
+          echo "Public release asset matches the exact tested ZIP"
+      - name: Activate beta.4 notification only after verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          feed={
+            "schema":1,
+            "product":"monarch-media-studio",
+            "channel":"stable",
+            "version":"0.1.0-beta.4",
+            "notes":"SMART DEPTH BETA.4 — MANUAL INSTALL REQUIRED. Adds local AI webcam background removal and bundled model files. Beta.2 and beta.3 updater scripts CANNOT install the new model folder: download the beta.4 ZIP, extract it, and run INSTALL_WINDOWS.cmd. Start START_WINDOWS.cmd; change OBS Browser Source to URL http://127.0.0.1:17463/MonarchMediaStudio.html with Local File unchecked. Real OBS camera permissions and streaming performance remain unverified. Export and import your saved JSON layouts between Browser Source origins.",
+            "download_url":"https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.4/MonarchMediaStudio_0.1.0-beta.4.zip",
+            "sha256":"9b828536d4497a802389eff0f8127b3eb1190df00cca43949b0b0a40cfd035ff",
+            "bytes":4080065,
+            "requires_manual_install":True
+          }
+          with open('/tmp/monarch-beta4-feed.json','w') as f:json.dump(feed,f,indent=2)
+          with open('/tmp/monarch-beta4-feed.json','a') as f:f.write('\n')
+          PY
+          existing=$(gh api repos/MavrckMedia/monarch-media-studio-updates/contents/stable.json --jq .sha)
+          encoded=$(base64 -w0 /tmp/monarch-beta4-feed.json)
+          gh api -X PUT repos/MavrckMedia/monarch-media-studio-updates/contents/stable.json \
+            -f message='release: activate Smart Depth beta.4 manual-install notification' \
+            -f sha="$existing" -f branch='main' -f content="$encoded" >/dev/null
+          actual=$(gh api repos/MavrckMedia/monarch-media-studio-updates/contents/stable.json --jq .content | base64 -d)
+          test "$(printf '%s' "$actual" | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])')" = '0.1.0-beta.4'
+          echo "Update feed activated for beta.2/3 users with manual install warning."
