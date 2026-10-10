@@ -2,9 +2,10 @@
   "schema": 1,
   "product": "monarch-media-studio",
   "channel": "stable",
-  "version": "0.1.0-beta.3",
-  "notes": "YouTube Error 153 maintenance beta: the YouTube iframe now allows origin referrer identification instead of suppressing it. No unrelated features changed. Browser and automated regression checks passed. OBS file:// sources might still lack a usable HTTP Referer, so please test YouTube playback and report if Error 153 continues. This update is optional and requires running the Windows updater after download.",
-  "download_url": "https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.3/MonarchMediaStudio_0.1.0-beta.3.zip",
-  "sha256": "64a1e233e1746d22539b235e1ddddd944272af414cc7294ecdc41cc5772308d6",
-  "bytes": 27035
+  "version": "0.1.0-beta.4",
+  "notes": "SMART DEPTH BETA.4 \u2014 MANUAL INSTALL REQUIRED. Adds local AI webcam background removal and bundled model files. Beta.2 and beta.3 updater scripts CANNOT install the new model folder: download the beta.4 ZIP, extract it, and run INSTALL_WINDOWS.cmd. Start START_WINDOWS.cmd; change OBS Browser Source to URL http://127.0.0.1:17463/MonarchMediaStudio.html with Local File unchecked. Real OBS camera permissions and streaming performance remain unverified. Export and import your saved JSON layouts between Browser Source origins.",
+  "download_url": "https://github.com/MavrckMedia/monarch-media-studio-updates/releases/download/v0.1.0-beta.4/MonarchMediaStudio_0.1.0-beta.4.zip",
+  "sha256": "9b828536d4497a802389eff0f8127b3eb1190df00cca43949b0b0a40cfd035ff",
+  "bytes": 4080065,
+  "requires_manual_install": true
 }
